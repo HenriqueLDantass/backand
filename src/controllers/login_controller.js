@@ -1,21 +1,30 @@
-const loginModels = require('../models/login_models')
-const loginHelps = require("../helpers/login_helpers")
+const loginModels = require('../models/login_models');
+const loginHelpers = require('../helpers/login_helpers');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 
-//controller
+// Controlador para registrar um novo usuário
 const registerUserController = async (req, res) => {
     try {
-        const hashedPassword = await loginHelps.hashPassword(req.body.senha, 10);
+        // Verifica se o usuário já existe
+        const userExists = await loginHelpers.checkUserExiste(req.body.username);
 
-        const registerUser = await loginModels.registerUser(req.body.username, hashedPassword);
+        if (userExists) {
+            return res.status(400).json({ message: 'Usuário já existe' });
+        }
+
+        // Gera o hash da senha do usuário
+        const hashedPassword = await loginHelpers.hashPassword(req.body.senha, 10);
+
+        // Registra o usuário no banco de dados
+        await loginModels.registerUser(req.body.username, hashedPassword, req.body.email);
         res.status(200).send('Usuário registrado com sucesso');
-    } catch (e) {
-        console.error(e);
-        res.status(500).send("Ocorreu um erro no registro");
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Ocorreu um erro no registro');
     }
 };
 
+// Controlador para fazer login de um usuário
 const loginUserController = async (req, res) => {
     try {
         // Recupera o usuário do banco de dados usando o nome de usuário fornecido
@@ -24,34 +33,27 @@ const loginUserController = async (req, res) => {
         // Verifica se o usuário foi encontrado
         if (!user) {
             console.log('Usuário não encontrado');
-            return res.status(401).json({ message: "Credenciais inválidas" });
+            return res.status(401).json({ message: 'Credenciais inválidas' });
         }
 
         // Compara a senha fornecida pelo usuário com a senha criptografada armazenada no banco de dados
         const match = await bcrypt.compare(req.body.senha, user.senha);
 
         if (match) {
-            // Se as senhas coincidirem, gera um token JWT para o usuário autenticado
-            const accessToken = await jwt.sign({ username: user.username, userId: user.user_id }, 'd8ba0efa43387f64c8ad374245911107c21ac41b21a7e45f95a4411baebd64be', { expiresIn: '1h' });
-            console.log('Token gerado:', accessToken);
-            res.json({ accessToken: accessToken });
+            console.log('Login efetuado com sucesso');
+            res.status(200).json({ message: 'Login efetuado com sucesso', user: user });
         } else {
             console.log('Senha incorreta');
-            res.status(401).json({ message: "Credenciais inválidas" });
+            res.status(401).json({ message: 'Credenciais inválidas' });
         }
-    } catch (e) {
-        console.error('Erro ao fazer login:', e);
-        res.status(500).json({ message: "Erro ao fazer login" });
+    } catch (error) {
+        console.error('Erro ao fazer login:', error);
+        res.status(500).json({ message: 'Erro ao fazer login' });
     }
-}
 
-
-
-
-
-
+};
 
 module.exports = {
     registerUserController,
     loginUserController
-}
+};

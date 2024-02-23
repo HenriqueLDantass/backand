@@ -1,3 +1,4 @@
+const conn = require("../db/database_conection")
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken');
 
@@ -14,11 +15,23 @@ const comparePasword = async (password, hashpassword) => {
 const hashPassword = async (password) => {
     return await bcrypt.hash(password, 10);
 }
+const checkUserExiste = async (username) => {
+    try {
+        const query = 'SELECT COUNT(*) AS count FROM users WHERE username = ?';
+        const [rows, fields] = await conn.execute(query, [username]);
+        const count = rows[0].count;
+        return count > 0;
+    } catch (e) {
+        console.error('Erro ao verificar usuário no banco de dados:', error);
+        throw error;
+    }
+}
 
 module.exports = {
     geradorToken,
     comparePasword,
-    hashPassword
+    hashPassword,
+    checkUserExiste
 }
 
 
